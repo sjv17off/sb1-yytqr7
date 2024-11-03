@@ -1,0 +1,8 @@
+user friendly design is not implemented on all pages
+font is not chenges ,colour pallette with gradient background
+need more userfriendly ui/ux for allpages and home,login,register
+user friendly login/register
+
+
+registration working login shows error
+didnt navigate to dashboard after login it shows error

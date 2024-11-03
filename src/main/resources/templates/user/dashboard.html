@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>User Dashboard - Tasko</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="dashboard-layout">
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <img th:src="@{/images/avatar.png}" alt="Profile" class="profile-img">
+            <h3 th:text="${user.fullName}"></h3>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="active"><a href="#tasks"><i class="fas fa-tasks"></i> Tasks</a></li>
+            <li><a href="#attendance"><i class="fas fa-clock"></i> Attendance</a></li>
+            <li><a href="#profile"><i class="fas fa-user"></i> Profile</a></li>
+            <li><a href="#reports"><i class="fas fa-chart-bar"></i> Reports</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </form>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="header-stats">
+            <div class="stat-card">
+                <h3>Tasks</h3>
+                <p th:text="${taskStats.pending + ' Pending'}"></p>
+                <p th:text="${taskStats.completed + ' Completed'}"></p>
+            </div>
+            <div class="stat-card">
+                <h3>Attendance</h3>
+                <p th:text="${attendanceStats.present + ' Days Present'}"></p>
+                <p th:text="${attendanceStats.absent + ' Days Absent'}"></p>
+            </div>
+        </div>
+
+        <section id="tasks" class="dashboard-section">
+            <div class="section-header">
+                <h2>My Tasks</h2>
+                <div class="task-filters">
+                    <select id="statusFilter">
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                    <select id="sortBy">
+                        <option value="dueDate">Due Date</option>
+                        <option value="priority">Priority</option>
+                        <option value="status">Status</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="task-list">
+                <div th:each="task : ${tasks}" th:class="'task-card ' + ${task.status.toLowerCase()}">
+                    <div class="task-header">
+                        <h3 th:text="${task.title}"></h3>
+                        <span th:class="'status-badge ' + ${task.status.toLowerCase()}" 
+                              th:text="${task.status}"></span>
+                    </div>
+                    <p th:text="${task.description}"></p>
+                    <div class="task-meta">
+                        <span><i class="far fa-calendar"></i> 
+                            <span th:text="${#temporals.format(task.dueDate, 'dd MMM yyyy')}"></span>
+                        </span>
+                        <span><i class="fas fa-flag"></i> 
+                            <span th:text="${task.priority}"></span>
+                        </span>
+                    </div>
+                    <div class="task-actions">
+                        <button th:if="${task.status != 'COMPLETED'}" 
+                                th:onclick="'updateTaskStatus(' + ${task.id} + ', \'IN_PROGRESS\')'">
+                            Start
+                        </button>
+                        <button th:if="${task.status == 'IN_PROGRESS'}" 
+                                th:onclick="'updateTaskStatus(' + ${task.id} + ', \'COMPLETED\')'">
+                            Complete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="attendance" class="dashboard-section">
+            <div class="section-header">
+                <h2>Attendance</h2>
+                <div class="attendance-actions">
+                    <button th:if="${todayAttendance == null}" 
+                            onclick="logAttendance()" 
+                            class="btn-primary">
+                        Check In
+                    </button>
+                    <button th:if="${todayAttendance != null && todayAttendance.checkOut == null}" 
+                            onclick="checkOut()" 
+                            class="btn-warning">
+                        Check Out
+                    </button>
+                </div>
+            </div>
+
+            <div class="attendance-calendar">
+                <div class="calendar-header">
+                    <button onclick="previousMonth()">←</button>
+                    <h3 th:text="${#temporals.format(currentDate, 'MMMM yyyy')}"></h3>
+                    <button onclick="nextMonth()">→</button>
+                </div>
+                <div class="calendar-grid" th:attr="data-attendance=${attendanceData}">
+                    <!-- Calendar will be populated via JavaScript -->
+                </div>
+            </div>
+
+            <div class="attendance-stats">
+                <div class="stat-card">
+                    <h4>Monthly Summary</h4>
+                    <p th:text="${monthlyStats.presentDays + ' Days Present'}"></p>
+                    <p th:text="${monthlyStats.absentDays + ' Days Absent'}"></p>
+                    <p th:text="${monthlyStats.lateCheckins + ' Late Check-ins'}"></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="profile" class="dashboard-section">
+            <div class="profile-card">
+                <div class="profile-header">
+                    <img th:src="${user.profileImage != null ? user.profileImage : '/images/default-avatar.png'}" 
+                         alt="Profile Picture" class="profile-picture">
+                    <div class="profile-info">
+                        <h2 th:text="${user.fullName}"></h2>
+                        <p th:text="${user.email}"></p>
+                        <p th:text="${user.enterprise.name}"></p>
+                    </div>
+                </div>
+                <div class="profile-body">
+                    <form th:action="@{/user/profile/update}" method="post" class="profile-form">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" name="fullName" th:value="${user.fullName}">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" name="email" th:value="${user.email}">
+                        </div>
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="tel" name="phone" th:value="${user.phone}">
+                        </div>
+                        <button type="submit" class="btn-primary">Update Profile</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script th:inline="javascript">
+        // Task Management
+        function updateTaskStatus(taskId, status) {
+            fetch(`/api/tasks/${taskId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status: status })
+            }).then(response => {
+                if (response.ok) {
+                    location.reload();
+                }
+            });
+        }
+
+        // Attendance Management
+        function logAttendance() {
+            fetch('/api/attendance/log', {
+                method: 'POST'
+            }).then(response => {
+                if (response.ok) {
+                    location.reload();
+                }
+            });
+        }
+
+        function checkOut() {
+            fetch('/api/attendance/checkout', {
+                method: 'POST'
+            }).then(response => {
+                if (response.ok) {
+                    location.reload();
+                }
+            });
+        }
+
+        // Calendar Management
+        function initializeCalendar() {
+            const attendanceData = JSON.parse(document.querySelector('.calendar-grid').dataset.attendance);
+            // Calendar initialization logic
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCalendar();
+        });
+    </script>
+</body>
+</html>

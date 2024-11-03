@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Admin Dashboard - Tasko</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="dashboard-layout">
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <img th:src="@{/images/admin-avatar.png}" alt="Admin" class="profile-img">
+            <h3>Admin Dashboard</h3>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="active"><a href="#overview"><i class="fas fa-chart-line"></i> Overview</a></li>
+            <li><a href="#users"><i class="fas fa-users"></i> Users</a></li>
+            <li><a href="#enterprises"><i class="fas fa-building"></i> Enterprises</a></li>
+            <li><a href="#tasks"><i class="fas fa-tasks"></i> Tasks</a></li>
+            <li><a href="#payroll"><i class="fas fa-money-bill"></i> Payroll</a></li>
+            <li><a href="#reports"><i class="fas fa-file-alt"></i> Reports</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </form>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section id="overview" class="dashboard-section">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Users</h3>
+                    <p th:text="${stats.totalUsers}"></p>
+                    <span th:text="${stats.activeUsers + ' Active'}"></span>
+                </div>
+                <div class="stat-card">
+                    <h3>Tasks</h3>
+                    <p th:text="${stats.totalTasks}"></p>
+                    <span th:text="${stats.pendingTasks + ' Pending'}"></span>
+                </div>
+                <div class="stat-card">
+                    <h3>Attendance</h3>
+                    <p th:text="${stats.presentToday}"></p>
+                    <span>Present Today</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Enterprises</h3>
+                    <p th:text="${stats.totalEnterprises}"></p>
+                    <span>Active</span>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="taskTrendsChart"></canvas>
+                <canvas id="attendanceTrendsChart"></canvas>
+            </div>
+        </section>
+
+        <section id="users" class="dashboard-section">
+            <div class="section-header">
+                <h2>User Management</h2>
+                <button onclick="showAddUserModal()" class="btn-primary">
+                    <i class="fas fa-plus"></i> Add User
+                </button>
+            </div>
+
+            <div class="filter-bar">
+                <input type="text" placeholder="Search users..." id="userSearch">
+                <select id="enterpriseFilter">
+                    <option value="">All Enterprises</option>
+                    <option th:each="enterprise : ${enterprises}" 
+                            th:value="${enterprise.id}" 
+                            th:text="${enterprise.name}"></option>
+                </select>
+                <select id="roleFilter">
+                    <option value="">All Roles</option>
+                    <option value="ADMIN">Admin</option>
+                    <option value="USER">User</option>
+                </select>
+            </div>
+
+            <div class="user-grid">
+                <div th:each="user : ${users}" class="user-card">
+                    <div class="user-header">
+                        <img th:src="${user.profileImage != null ? user.profileImage : '/images/default-avatar.png'}" 
+                             alt="User Avatar">
+                        <div class="user-info">
+                            <h3 th:text="${user.fullName}"></h3>
+                            <p th:text="${user.email}"></p>
+                        </div>
+                    </div>
+                    <div class="user-body">
+                        <p><strong>Enterprise:</strong> <span th:text="${user.enterprise.name}"></span></p>
+                        <p><strong>Role:</strong> <span th:text="${user.role}"></span></p>
+                        <p><strong>Status:</strong> <span th:text="${user.active ? 'Active' : 'Inactive'}"></span></p>
+                    </div>
+                    <div class="user-actions">
+                        <button onclick="editUser(${user.id})" class="btn-edit">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button th:if="${user.active}" 
+                                onclick="deactivateUser(${user.id})" 
+                                class="btn-warning">
+                            Deactivate
+                        </button>
+                        <button th:unless="${user.active}" 
+                                onclick="activateUser(${user.id})" 
+                                class="btn-success">
+                            Activate
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="enterprises" class="dashboard-section">
+            <div class="section-header">
+                <h2>Enterprise Management</h2>
+                <button onclick="showAddEnterpriseModal()" class="btn-primary">
+                    <i class="fas fa-plus"></i> Add Enterprise
+                </button>
+            </div>
+
+            <div class="enterprise-grid">
+                <div th:each="enterprise : ${enterprises}" class="enterprise-card">
+                    <div class="enterprise-header">
+                        <h3 th:text="${enterprise.name}"></h3>
+                        <span th:text="${enterprise.users.size() + ' Users'}"></span>
+                    </div>
+                    <div class="enterprise-stats">
+                        <div class="stat">
+                            <span>Active Tasks</span>
+                            <p th:text="${enterprise.activeTasks}"></p>
+                        </div>
+                        <div class="stat">
+                            <span>Present Today</span>
+                            <p th:text="${enterprise.presentToday}"></p>
+                        </div>
+                    </div>
+                    <div class="enterprise-actions">
+                        <button onclick="editEnterprise(${enterprise.id})" class="btn-edit">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button onclick="viewEnterpriseDetails(${enterprise.id})" class="btn-view">
+                            <i class="fas fa-eye"></i> View Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="payroll" class="dashboard-section">
+            <div class="section-header">
+                <h2>Payroll Management</h2>
+                <div class="payroll-actions">
+                    <button onclick="generatePayroll()" class="btn-primary">
+                        Generate Payroll
+                    </button>
+                    <button onclick="exportPayrollReport()" class="btn-secondary">
+                        Export Report
+                    </button>
+                </div>
+            </div>
+
+            <div class="payroll-filters">
+                <select id="payrollMonth">
+                    <option th:each="month : ${months}" 
+                            th:value="${month.value}" 
+                            th:text="${month.label}"></option>
+                </select>
+                <select id="payrollYear">
+                    <option th:each="year : ${years}" 
+                            th:value="${year}" 
+                            th:text="${year}"></option>
+                </select>
+                <select id="payrollEnterprise">
+                    <option value="">All Enterprises</option>
+                    <option th:each="enterprise : ${enterprises}" 
+                            th:value="${enterprise.id}" 
+                            th:text="${enterprise.name}"></option>
+                </select>
+            </div>
+
+            <div class="payroll-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Enterprise</th>
+                            <th>Working Days</th>
+                            <th>Present Days</th>
+                            <th>Overtime Hours</th>
+                            <th>Basic Salary</th>
+                            <th>Deductions</th>
+                            <th>Net Salary</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="payroll : ${payrollData}">
+                            <td th:text="${payroll.employeeName}"></td>
+                            <td th:text="${payroll.enterprise}"></td>
+                            <td th:text="${payroll.workingDays}"></td>
+                            <td th:text="${payroll.presentDays}"></td>
+                            <td th:text="${payroll.overtimeHours}"></td>
+                            <td th:text="${payroll.basicSalary}"></td>
+                            <td th:text="${payroll.deductions}"></td>
+                            <td th:text="${payroll.netSalary}"></td>
+                            <td>
+                                <button onclick="viewPayslip(${payroll.id})" class="btn-view">
+                                    View Payslip
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modals -->
+    <div id="addUserModal" class="modal">
+        <!-- Add User Form -->
+    </div>
+
+    <div id="addEnterpriseModal" class="modal">
+        <!-- Add Enterprise Form -->
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script th:inline="javascript">
+        // Initialize Charts
+        function initializeCharts() {
+            const taskTrendsCtx = document.getElementById('taskTrendsChart').getContext('2d');
+            const attendanceTrendsCtx = document.getElementById('attendanceTrendsChart').getContext('2d');
+            
+            // Task Trends Chart
+            new Chart(taskTrendsCtx, {
+                type: 'line',
+                data: {
+                    labels: /*[[${taskTrends.labels}]]*/ [],
+                    datasets: [{
+                        label: 'Completed Tasks',
+                        data: /*[[${taskTrends.completed}]]*/ [],
+                        borderColor: '#4CAF50'
+                    }, {
+                        label: 'New Tasks',
+                        data: /*[[${taskTrends.new}]]*/ [],
+                        borderColor: '#2196F3'
+                    }]
+                }
+            });
+
+            // Attendance Trends Chart
+            new Chart(attendanceTrendsCtx, {
+                type: 'bar',
+                data: {
+                    labels: /*[[${attendanceTrends.labels}]]*/ [],
+                    datasets: [{
+                        label: 'Present',
+                        data: /*[[${attendanceTrends.present}]]*/ [],
+                        backgroundColor: '#4CAF50'
+                    }, {
+                        label: 'Absent',
+                        data: /*[[${attendanceTrends.absent}]]*/ [],
+                        backgroundColor: '#f44336'
+                    }]
+                }
+            });
+        }
+
+        // User Management
+        function showAddUserModal() {
+            document.getElementById('addUserModal').style.display = 'block';
+        }
+
+        function editUser(userId) {
+            // Edit user logic
+        }
+
+        // Enterprise Management
+        function showAddEnterpriseModal() {
+            document.getElementById('addEnterpriseModal').style.display = 'block';
+        }
+
+        // Payroll Management
+        function generatePayroll() {
+            const month = document.getElementById('payrollMonth').value;
+            const year = document.getElementById('payrollYear').value;
+            const enterprise = document.getElementById('payrollEnterprise').value;
+
+            fetch('/api/payroll/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ month, year, enterpriseId: enterprise })
+            }).then(response => {
+                if (response.ok) {
+                    location.reload();
+                }
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+        });
+    </script>
+</body>
+</html>
